@@ -58,7 +58,7 @@ export default function Setup() {
   };
 
   return (
-    <div className="min-h-screen bg-bg text-txt-main font-sans flex flex-col">
+    <div className="min-h-screen bg-neutral-950 text-txt-main font-sans flex flex-col">
       <div className="w-full max-w-3xl mx-auto px-6 py-12 flex-1 flex flex-col">
         
         {/* Header */}

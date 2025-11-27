@@ -299,7 +299,7 @@ export default function InterviewRoom() {
       </header>
 
       {/* Visuals */}
-      <main className="flex-1 w-full h-full relative">
+      <main className="flex-1 w-full h-full relative ">
         <HolographicAvatar
           analyser={analyserRef.current || undefined}
           isSpeaking={aiSpeaking}
@@ -354,7 +354,7 @@ export default function InterviewRoom() {
       )}
 
       {/* Controls */}
-      <footer className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4 z-30 pointer-events-auto">
+      <footer className="absolute bottom-12 md:bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4 z-30 pointer-events-auto">
         <button
           onClick={() => setIsTranscriptVisible(!isTranscriptVisible)}
           className={`p-4 rounded-full border transition-all ${

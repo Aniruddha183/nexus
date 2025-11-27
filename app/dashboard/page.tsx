@@ -57,7 +57,7 @@ const apiKey =
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bg flex flex-col items-center justify-center text-txt-main">
+      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center text-txt-main">
         <Loader2 className="w-8 h-8 animate-spin mb-4 text-accent" />
         <p className="text-sm font-mono">Analyzing Results...</p>
       </div>
