@@ -32,7 +32,7 @@ export default function InterviewRoom() {
   const [error, setError] = useState<string | null>(null);
   const [aiSpeaking, setAiSpeaking] = useState(false);
   const [streamingUserText, setStreamingUserText] = useState("");
-  const [isTranscriptVisible, setIsTranscriptVisible] = useState(true);
+  const [isTranscriptVisible, setIsTranscriptVisible] = useState(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const inputContextRef = useRef<AudioContext | null>(null);
@@ -122,6 +122,21 @@ export default function InterviewRoom() {
               };
               source.connect(processor);
               processor.connect(inputContextRef.current.destination);
+
+              // Auto-greet the candidate by name
+              sessionPromise.then((session) => {
+                if (
+                  activeSessionRef.current === session &&
+                  config.candidateName
+                ) {
+                  // Send initial greeting trigger to AI
+                  setTimeout(() => {
+                    session.sendRealtimeInput({
+                      text: `The candidate ${config.candidateName} has just joined the interview. Please greet them warmly by name and start the interview.`,
+                    });
+                  }, 500); // Small delay to ensure session is fully ready
+                }
+              });
             } catch (err) {
               setError("Microphone Access Denied");
             }
