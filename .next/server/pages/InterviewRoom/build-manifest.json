@@ -1,0 +1,18 @@
+{
+  "devFiles": [],
+  "ampDevFiles": [],
+  "polyfillFiles": [],
+  "lowPriorityFiles": [],
+  "rootMainFiles": [],
+  "pages": {
+    "/InterviewRoom": [
+      "static/chunks/e310f3fbf92e41df.js",
+      "static/chunks/a6c0322dd645ada9.js",
+      "static/chunks/9ece8533f1d6e430.js",
+      "static/chunks/a076054e4561cb08.js",
+      "static/chunks/7be6ef949ac3a33e.js",
+      "static/chunks/turbopack-5eea201bc194d1c2.js"
+    ]
+  },
+  "ampFirstPages": []
+}
