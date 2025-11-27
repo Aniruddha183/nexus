@@ -1,7 +1,18 @@
-'use client';
+"use client";
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { InterviewConfig, Difficulty, TranscriptItem, AnalyticsData } from '../lib/types';
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useCallback,
+} from "react";
+import {
+  InterviewConfig,
+  Difficulty,
+  TranscriptItem,
+  AnalyticsData,
+} from "../lib/types";
 
 interface InterviewContextType {
   config: InterviewConfig;
@@ -14,46 +25,55 @@ interface InterviewContextType {
 }
 
 const defaultContext: InterviewContextType = {
-  config: { domain: '', difficulty: Difficulty.MID, candidateName: '', resumeText: '' },
+  config: {
+    domain: "",
+    difficulty: Difficulty.MID,
+    candidateName: "",
+    resumeText: "",
+  },
   setConfig: () => {},
   transcript: [],
   addTranscriptItem: () => {},
   analytics: null,
   setAnalytics: () => {},
-  resetInterview: () => {}
+  resetInterview: () => {},
 };
 
 const InterviewContext = createContext<InterviewContextType>(defaultContext);
 
-export const InterviewProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const InterviewProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   const [config, setConfig] = useState<InterviewConfig>({
-    domain: '',
+    domain: "",
     difficulty: Difficulty.MID,
-    candidateName: '',
-    resumeText: ''
+    candidateName: "",
+    resumeText: "",
   });
   const [transcript, setTranscript] = useState<TranscriptItem[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
 
-  const addTranscriptItem = (item: TranscriptItem) => {
-    setTranscript(prev => [...prev, item]);
-  };
+  const addTranscriptItem = useCallback((item: TranscriptItem) => {
+    setTranscript((prev) => [...prev, item]);
+  }, []);
 
-  const resetInterview = () => {
+  const resetInterview = useCallback(() => {
     setTranscript([]);
     setAnalytics(null);
-  };
+  }, []);
 
   return (
-    <InterviewContext.Provider value={{
-      config,
-      setConfig,
-      transcript,
-      addTranscriptItem,
-      analytics,
-      setAnalytics,
-      resetInterview
-    }}>
+    <InterviewContext.Provider
+      value={{
+        config,
+        setConfig,
+        transcript,
+        addTranscriptItem,
+        analytics,
+        setAnalytics,
+        resetInterview,
+      }}
+    >
       {children}
     </InterviewContext.Provider>
   );

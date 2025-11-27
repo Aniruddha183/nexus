@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useInterview } from '../../context/InterviewContext';
 import { DOMAINS } from '../../lib/constants';

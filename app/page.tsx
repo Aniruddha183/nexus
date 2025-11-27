@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Mic, Brain, BarChart3 } from 'lucide-react';
 

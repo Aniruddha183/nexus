@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useInterview } from '../../context/InterviewContext';
 import { GoogleGenAI } from '@google/genai';
 import { AnalyticsSchema } from '../../lib/types';
-import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip } from 'recharts';
+import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { ArrowLeft, Download, Eye, Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
   const router = useRouter();
+  const [error, setError] = useState('');
   const { config, transcript, analytics, setAnalytics } = useInterview();
   const [loading, setLoading] = useState(true);
 
@@ -19,10 +20,17 @@ export default function Dashboard() {
         setLoading(false);
         return;
       }
-      if (!process.env.API_KEY) return;
+const apiKey =
+      process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
+      process.env.NEXT_PUBLIC_API_KEY ||
+      process.env.API_KEY;
+    if (!apiKey) {
+      setError("API Key Missing");
+      return;
+    }
 
       try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = new GoogleGenAI({ apiKey });
         const conversationHistory = transcript.map(t => `${t.role.toUpperCase()}: ${t.text}`).join('\n');
         const prompt = `
           Analyze this interview transcript for ${config.candidateName} (${config.domain}, ${config.difficulty}).
@@ -84,7 +92,7 @@ export default function Dashboard() {
            <h1 className="text-3xl font-light mb-2">{config.candidateName}</h1>
            <p className="text-txt-sec font-mono text-sm">{config.domain} — {config.difficulty}</p>
         </div>
-
+{error && <p className="text-red-500">{error}</p>}
         {/* Top Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
            <div className="md:col-span-2 bg-[#1a1a1a] border border-border p-8 rounded-lg">

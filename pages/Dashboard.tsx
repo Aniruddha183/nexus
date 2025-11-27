@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useInterview } from '../context/InterviewContext';
 import { GoogleGenAI } from '@google/genai';
 import { AnalyticsSchema } from '../types';
