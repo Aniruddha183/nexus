@@ -33,7 +33,6 @@ export default function InterviewRoom() {
   const [aiSpeaking, setAiSpeaking] = useState(false);
   const [streamingUserText, setStreamingUserText] = useState("");
   const [isTranscriptVisible, setIsTranscriptVisible] = useState(false);
-
   const audioContextRef = useRef<AudioContext | null>(null);
   const inputContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -48,7 +47,6 @@ export default function InterviewRoom() {
   useEffect(() => {
     isMicOnRef.current = isMicOn;
   }, [isMicOn]);
-
   const connectToGemini = useCallback(async () => {
     const apiKey =
       process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
@@ -308,8 +306,8 @@ export default function InterviewRoom() {
 
       {/* Transcript Overlay */}
       {isTranscriptVisible && (
-        <div className="absolute top-20 left-6 w-80 max-h-[50vh] flex flex-col z-20 pointer-events-auto">
-          <div className="bg-[#1a1a1a]/90 border border-border rounded-lg p-4 flex flex-col h-full backdrop-blur-sm">
+        <div className="absolute top-20 left-6 w-80 flex flex-col z-20 pointer-events-auto">
+          <div className="bg-[#1a1a1a]/90 border border-border rounded-lg p-4 flex flex-col backdrop-blur-sm">
             <div className="flex justify-between items-center mb-3">
               <span className="text-xs font-mono text-accent">TRANSCRIPT</span>
               <button onClick={() => setIsTranscriptVisible(false)}>
@@ -318,7 +316,7 @@ export default function InterviewRoom() {
             </div>
             <div
               ref={scrollRef}
-              className="flex-1 overflow-y-auto space-y-3 pr-1 text-sm"
+              className="overflow-y-auto space-y-3 pr-1 text-sm max-h-[60vh]"
             >
               {transcript.map((item, idx) => (
                 <div
