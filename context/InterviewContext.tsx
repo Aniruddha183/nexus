@@ -30,6 +30,7 @@ const defaultContext: InterviewContextType = {
     difficulty: Difficulty.MID,
     candidateName: "",
     resumeText: "",
+    jd: "",
   },
   setConfig: () => {},
   transcript: [],
@@ -49,6 +50,7 @@ export const InterviewProvider: React.FC<{ children: ReactNode }> = ({
     difficulty: Difficulty.MID,
     candidateName: "",
     resumeText: "",
+    jd: "",
   });
   const [transcript, setTranscript] = useState<TranscriptItem[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);

@@ -1,19 +1,19 @@
 import { Type } from "@google/genai";
 
 export enum InterviewStatus {
-  IDLE = 'IDLE',
-  SETUP = 'SETUP',
-  CONNECTING = 'CONNECTING',
-  LIVE = 'LIVE',
-  ANALYZING = 'ANALYZING',
-  COMPLETED = 'COMPLETED'
+  IDLE = "IDLE",
+  SETUP = "SETUP",
+  CONNECTING = "CONNECTING",
+  LIVE = "LIVE",
+  ANALYZING = "ANALYZING",
+  COMPLETED = "COMPLETED",
 }
 
 export enum Difficulty {
-  JUNIOR = 'Junior',
-  MID = 'Mid-Level',
-  SENIOR = 'Senior',
-  PRINCIPAL = 'Principal'
+  JUNIOR = "Junior",
+  MID = "Mid-Level",
+  SENIOR = "Senior",
+  PRINCIPAL = "Principal",
 }
 
 export interface InterviewConfig {
@@ -21,10 +21,11 @@ export interface InterviewConfig {
   difficulty: Difficulty;
   candidateName: string;
   resumeText?: string;
+  jd?: string;
 }
 
 export interface TranscriptItem {
-  role: 'user' | 'model';
+  role: "user" | "model";
   text: string;
   timestamp: number;
 }
@@ -39,16 +40,48 @@ export interface AnalyticsData {
   summary: string;
 }
 
+export interface NextQuestion {
+  closingMessage?: string;
+  nextQuestion: {
+    questionId: string;
+    questionText: string;
+    topic?: string;
+    difficulty?: string;
+  } | null;
+}
+
 export const AnalyticsSchema = {
   type: Type.OBJECT,
   properties: {
     score: { type: Type.NUMBER, description: "Overall score out of 100" },
     technicalAccuracy: { type: Type.NUMBER, description: "Score out of 100" },
-    communicationClarity: { type: Type.NUMBER, description: "Score out of 100" },
+    communicationClarity: {
+      type: Type.NUMBER,
+      description: "Score out of 100",
+    },
     domainKnowledge: { type: Type.NUMBER, description: "Score out of 100" },
-    strengths: { type: Type.ARRAY, items: { type: Type.STRING }, description: "List of key strengths" },
-    weaknesses: { type: Type.ARRAY, items: { type: Type.STRING }, description: "List of areas for improvement" },
-    summary: { type: Type.STRING, description: "A paragraph summarizing the interview performance" }
+    strengths: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: "List of key strengths",
+    },
+    weaknesses: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: "List of areas for improvement",
+    },
+    summary: {
+      type: Type.STRING,
+      description: "A paragraph summarizing the interview performance",
+    },
   },
-  required: ["score", "technicalAccuracy", "communicationClarity", "domainKnowledge", "strengths", "weaknesses", "summary"]
+  required: [
+    "score",
+    "technicalAccuracy",
+    "communicationClarity",
+    "domainKnowledge",
+    "strengths",
+    "weaknesses",
+    "summary",
+  ],
 };
