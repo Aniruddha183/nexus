@@ -51,3 +51,125 @@ ${
 
 export const PCM_SAMPLE_RATE = 16000;
 export const OUT_SAMPLE_RATE = 24000;
+
+export const parseResumePrompt = (resumeText: string) => {
+  return `
+You are a resume parser. Extract the following information from the resume text and return ONLY a valid JSON object with no additional text or markdown formatting.
+
+Required JSON structure:
+{
+  "name": "Full name",
+  "title": "Current job title or desired position",
+  "experience_years": 0.0,
+  "skills": {
+    "languages": ["JavaScript", "Python"],
+    "frameworks": ["React", "Node.js"],
+    "databases": ["MongoDB", "PostgreSQL"],
+    "tools": ["Docker", "Git"]
+  },
+  "work_experience": [
+    {
+      "company": "Company name",
+      "role": "Job title",
+      "start": "YYYY-MM-DD or YYYY-MM",
+      "end": "YYYY-MM-DD or present",
+      "description": "Brief description of responsibilities"
+    }
+  ],
+  "projects": [
+    {
+      "name": "Project name",
+      "description": "What the project does",
+      "tech": ["Technology", "Stack"]
+    }
+  ],
+  "education": {
+    "degree": "Degree name",
+    "institute": "University/College name",
+    "year": 2023
+  },
+  "achievements": ["Achievement 1", "Achievement 2"],
+  "soft_skills": ["communication", "leadership"]
+  "resume_summary": "Here is the entire summary of this Resume....."
+}
+
+Rules:
+- If information is not available, use empty arrays [] or empty strings ""
+- Calculate experience_years based on work history (in decimal, e.g., 1.5 years)
+- Use "present" for current positions
+- Extract only factual information from the resume
+- Return ONLY the JSON object, no markdown code blocks
+
+Resume Text:
+${resumeText}
+`;
+};
+
+export const parseJDPrompt = (jdText: string) => `
+Extract structured information from this job description.
+Return ONLY valid JSON with the schema:
+
+{
+  "title": "",
+  "company": "",
+  "location": "",
+  "employment_type": "",
+  "experience_required_years": 0.0,
+  "skills_required": {
+    "must_have": [],
+    "good_to_have": []
+  },
+  "roles_responsibilities": [],
+  "education_required": "",
+  "salary_range": "",
+  "job_summary": ""
+}
+
+Rules:
+- No Markdown.
+- No commentary.
+- Use empty values when missing.
+- Convert all experience mentions into number of years.
+
+Job Description:
+${jdText}
+`;
+
+export const evaluationPrompt = (transcript: any, resume: any, jd: any) => {
+  return `
+You are an AI interview evaluator.
+
+Evaluate the candidate based on:
+- Complete transcript of Q&A
+- Candidate’s parsed resume
+- Parsed job description
+
+Return ONLY valid JSON in the following schema:
+
+{
+  "score": 1-10,
+  "communication": 1-10,
+  "technicalDepth": 1-10,
+  "problemSolving": 1-10,
+  "confidence": 1-10,
+  "strengths": ["..."],
+  "weaknesses": ["..."],
+  "summary": "3-4 line summary",
+  "recommendation": "strong_yes" | "yes" | "maybe" | "no"
+}
+
+Rules:
+- Strict JSON only
+- Don’t hallucinate missing data
+- Score must reflect candidate's actual answers
+
+Transcript:
+${JSON.stringify(transcript)}
+
+Resume:
+${JSON.stringify(resume)}
+
+Job Description:
+${JSON.stringify(jd)}
+`;
+};
