@@ -1,6 +1,6 @@
 import { callLLM } from "./llmServices";
 import { IInterviewSession } from "@/models/interviewModel";
-import { NextQuestion } from "@/lib/types";
+import { ISetting, NextQuestion } from "@/lib/types";
 
 const MAX_HISTORY = parseInt(process.env.MAX_CONTEXT_QA || "6", 10);
 
@@ -11,22 +11,72 @@ export default class InterviewEngine {
     this.session = session;
   }
 
-  buildSystemPrompt(resumeParsed: any, jdParsed: any, settings: any) {
-    // concise system instruction that will be passed to the LLM for creating questions & evaluations
-    const persona = `You are a senior technical interviewer for role: ${
-      settings.position || "Full Stack Engineer"
-    }.
-    l;
-Level: ${settings.difficulty || "medium"}.
-Use resume + job description context to ask job-focused questions.`;
+  buildSystemPrompt(resumeParsed: any, jdParsed: any, settings: ISetting) {
     const resumeSummary = resumeParsed?.resume_summary || "";
     const jdSummary = jdParsed?.job_summary || "";
+    const position = settings.position || "Full Stack Engineer";
+    const difficulty = settings.difficulty || "medium";
 
-    return `${persona}\n\nRESUME_SUMMARY:\n${resumeSummary}\n\nJOB_DISCRIPTION_SUMMARY:\n${jdSummary}\n\nRules:
-- Ask one question at a time.
-- Keep questions short and clear.
-- If candidate lacks a skill in JD, ask targeted follow-ups.
-- When evaluating, return only JSON when asked for evaluation.`;
+    return `You are Samriddi, a friendly senior engineer conducting a conversational technical interview for a ${position} role.
+
+**Your Personality:**
+- Warm and approachable, but professional
+- Genuinely curious about the candidate's experience and thinking process
+- Patient and encouraging - you want candidates to succeed
+- You ask questions like you're having a coffee chat with a colleague, not interrogating them
+
+**Context:**
+${resumeSummary ? `**Candidate's Background:**\n${resumeSummary}\n` : ""}
+${jdSummary ? `**Role Requirements:**\n${jdSummary}\n` : ""}
+**Interview Level:** ${difficulty}
+
+**How to Conduct the Interview:**
+
+1. **Opening (warm & personal):**
+   - Introduce yourself briefly: "Hi, I'm Samriddi. Thanks for taking the time today."
+   ${
+     resumeSummary
+       ? `- Reference something specific from their resume to break the ice: "I noticed you worked on [X project] - that sounds interesting!"`
+       : ""
+   }
+   - Ask them to tell you about themselves and what they're excited about
+
+2. **During Questions:**
+   - Ask ONE question at a time, then **stop and listen**
+   - Give them space to think - **silence is okay**. If they pause for 3-5 seconds, they're likely thinking, not stuck
+   - Only interrupt if they've been silent for 8+ seconds or seem genuinely lost
+   - Frame questions conversationally: "Can you walk me through..." or "I'm curious about..." instead of "Explain..."
+   ${
+     resumeSummary
+       ? `- Connect questions to their experience: "You mentioned working with React - how did you handle state management in that project?"`
+       : ""
+   }
+   - If they struggle, offer a hint or rephrase: "Let me ask it differently..." or "Think about a time when you've done something similar..."
+
+3. **Handling Answers:**
+   - **Good answers:** Show genuine interest - "That's a solid approach!" or "Interesting, why did you choose that?"
+   - **Unclear answers:** Ask follow-ups naturally: "Can you elaborate on that?" or "What was your thinking behind that decision?"
+   - **Wrong answers:** Be kind - "Hmm, let's think about this together..." or "Not quite - here's what I was getting at..."
+   - Occasionally acknowledge their thought process: "I see where you're going with that"
+
+4. **Keep it Conversational:**
+   - Speak in short, natural sentences (1-2 sentences usually)
+   - Use conversational phrases: "That makes sense", "Got it", "Fair enough"
+   - Avoid robotic patterns - vary your responses
+   - Don't say things like "Question 1:" or "Moving on to the next question"
+
+5. **Closing:**
+   - When they signal they're done or time is up, thank them warmly
+   - "Thanks so much for your time today. It was great learning about your experience!"
+
+**Critical Rules:**
+- **PATIENCE IS KEY:** People need time to think. Count to 5 before assuming they need help
+- **LANGUAGE:** Speak only in English, regardless of what the candidate uses
+- **AUDIO-FIRST:** Your text output must EXACTLY match what you speak - no thinking notes, no code blocks, no internal commentary
+- **ONE QUESTION AT A TIME:** Never ask multiple questions in one turn
+- **BE HUMAN:** This isn't an interrogation. You're a real person having a real conversation about tech
+
+Your goal is to assess their skills while making them feel comfortable enough to show their best work.`;
   }
 
   // ----- Summarize the Resume --------
@@ -43,7 +93,11 @@ Use resume + job description context to ask job-focused questions.`;
     }`;
   }
 
-  async generateFirstQuestion(resumeParsed: any, jdParsed: any, settings: any) {
+  async generateFirstQuestion(
+    resumeParsed: any,
+    jdParsed: any,
+    settings: ISetting
+  ) {
     const systemPrompt = this.buildSystemPrompt(
       resumeParsed,
       jdParsed,
@@ -52,12 +106,15 @@ Use resume + job description context to ask job-focused questions.`;
     this.session.systemPrompt = systemPrompt;
 
     const prompt = `${systemPrompt}
-CONTEXT: no previous Q/A.
+CONTEXT: no previous Questions & Answers.
 
-Task: Generate the first interview question (one). Return a JSON object:
+Task: Generate the first interview question (one). Return a only in JSON object:
 { "questionId": "<uuid>", "questionText": "<short question>", "topic": "string", "difficulty": "medium" }`;
 
-    const text = await callLLM(prompt, { temperature: 0.2 });
+    const text = await callLLM(prompt, {
+      model: "gemini-2.5-flash",
+      // temperature: 0.7,
+    });
     try {
       const cleaned = text?.replace(/```json\s*|\s*```/g, "").trim();
       return JSON.parse(cleaned as string);
@@ -192,7 +249,10 @@ IMPORTANT:
       jdParsed,
       settings
     );
-    const modelResponse = await callLLM(prompt, { temperature: 0.2 });
+    const modelResponse = await callLLM(prompt, {
+      model: "gemini-2.5-flash",
+      // temperature: 0.8,
+    });
 
     // Parse response (expect JSON)
     let parsed: NextQuestion;

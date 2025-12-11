@@ -36,16 +36,20 @@ export const parseWithGemini = async (text: string, type: "JD" | "Resume") => {
 
 export async function callLLM(
   prompt: string,
-  opts?: { temperature?: number; maxTokens?: number }
+  opts?: { model: string; temperature?: number; maxTokens?: number }
 ) {
   try {
-    const res = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+    const response = await ai.models.generateContent({
+      model: opts?.model ?? "gemini-2.5-flash",
       contents: prompt,
       config: { temperature: opts?.temperature },
     });
-    return res.text;
+    return response.text;
   } catch (error) {
+    console.error("Error: ", error.status);
+    if (error.status === 429) {
+      throw new Error("LLM call exceeded");
+    }
     throw new Error("Implement callLLM with your provider", error.message);
   }
 }

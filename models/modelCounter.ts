@@ -1,4 +1,4 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose, { Model, Schema } from "mongoose";
 
 // Interface for the Counter document
 interface ICounter {
@@ -13,7 +13,9 @@ const counterSchema = new Schema<ICounter>({
 });
 
 // Create the Counter model
-const ModelCounter = mongoose.model<ICounter>("ModelCounter", counterSchema);
+const ModelCounter =
+  (mongoose.models.ModelCounter as Model<ICounter>) ||
+  mongoose.model<ICounter>("ModelCounter", counterSchema);
 export default ModelCounter;
 
 export async function generateUniqueSequence(prefix: string): Promise<number> {

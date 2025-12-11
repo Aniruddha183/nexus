@@ -1,3 +1,5 @@
+import { DefaultSession, DefaultUser } from "next-auth";
+import { DefaultJWT } from "next-auth/jwt";
 import { Type } from "@google/genai";
 
 export enum InterviewStatus {
@@ -28,6 +30,13 @@ export interface TranscriptItem {
   role: "user" | "model";
   text: string;
   timestamp: number;
+}
+
+export interface ISetting {
+  candidateName: string;
+  position: string;
+  language: string;
+  difficulty: string;
 }
 
 export interface AnalyticsData {
@@ -85,3 +94,24 @@ export const AnalyticsSchema = {
     "summary",
   ],
 };
+
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      image: string;
+    } & DefaultSession["user"];
+  }
+
+  interface User extends DefaultUser {
+    id: string;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT extends DefaultJWT {
+    id: string;
+  }
+}

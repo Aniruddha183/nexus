@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/server/mongodb";
-import User from "@/models/userModel";
+import User, { IUser } from "@/models/userModel";
 import path from "path";
 import { writeFile } from "fs/promises";
-import { extractTextFromPdf } from "@/lib/textHandlers";
+import { extractTextFromPdf, formatDate } from "@/lib/textHandlers";
 import DocumentModel from "@/models/documentModel";
 import { parseWithGemini } from "@/lib/gemini/llmServices";
 import { generateUniqueID } from "@/models/modelCounter";
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     const difficulty = formData.get("difficulty") as string;
     const language = formData.get("language") as string;
     const jd = formData.get("jd") as string | null;
-    const questionLimit = (formData.get("questionLimit") as string) || "5";
+    // const questionLimit = (formData.get("questionLimit") as string) || "5";
 
     if (!file || !name || !role || !experience) {
       return NextResponse.json(
@@ -39,11 +39,11 @@ export async function POST(request: NextRequest) {
     }
     // console.log("Handling File");
     // Convert PDF file to buffer
-    const buffer = Buffer.from(await file.arrayBuffer());
+    // const buffer = Buffer.from(await file.arrayBuffer());
     const fileName = `${file.name}-${Date.now()}`;
     const filePath = path.join(process.cwd(), "public", fileName);
 
-    await writeFile(filePath, buffer);
+    // await writeFile(filePath, buffer);
 
     // Extract text from resume
     // console.log("Extracting Text from RESUME");
@@ -53,25 +53,52 @@ export async function POST(request: NextRequest) {
     // console.log("Parsing Resume");
     const resumeParsed = await parseWithGemini(resumeRawText, "Resume");
 
-    // Create user
-    // console.log("saving user");
-    const USRID = await generateUniqueID("USR");
-    const user = await User.create({
-      USRID,
-      name,
-      email,
-      role,
-      experience,
-      difficulty,
-      language,
-      questionLimit: Number(questionLimit),
-    });
+    const existingUser = await User.findOne({ email });
+
+    let user: IUser | null;
+
+    if (existingUser) {
+      // Update existing user (exclude USRID & questionLimit)
+      user = await User.findOneAndUpdate(
+        { email },
+        {
+          $set: {
+            name,
+            role,
+            experience,
+            difficulty,
+            language,
+          },
+        },
+        { new: true }
+      );
+    } else {
+      // Create new user with USRID and default questionLimit
+      const maxQuestions = process.env.MAX_GUEST_QUESTIONS;
+      const maxDuration = process.env.MAX_GUEST_DURATION;
+      const USRID = await generateUniqueID("USR");
+      user = await User.create({
+        USRID,
+        name,
+        email,
+        role,
+        experience,
+        difficulty,
+        language,
+        userType: "GUEST",
+        limits: {
+          maxDurationPerDay: Number(maxQuestions),
+          maxQuestionsPerDay: Number(maxDuration),
+          lastResetDate: formatDate(new Date()),
+        },
+      });
+    }
 
     // Save Resume Document
     // console.log("saving resume");
     // const resumeId = await generateUniqueID("RS");
     const resumeDoc = await DocumentModel.create({
-      userId: user._id,
+      userId: user?._id,
       type: "Resume",
       rawText: resumeRawText,
       parsed: resumeParsed,
@@ -85,7 +112,7 @@ export async function POST(request: NextRequest) {
 
       // console.log("saving JD");
       jdDoc = await DocumentModel.create({
-        userId: user._id,
+        userId: user?._id,
         type: "JD",
         rawText: jd,
         parsed: jdParsed,
@@ -96,7 +123,7 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         message: "User setup complete",
-        userId: user._id,
+        userId: user?._id,
         resumeId: resumeDoc._id,
         jdId: jdDoc?._id || null,
         ready: true,
