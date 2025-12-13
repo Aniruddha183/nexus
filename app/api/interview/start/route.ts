@@ -5,6 +5,7 @@ import InterviewSession from "@/models/interviewModel";
 import InterviewEngine from "@/lib/gemini/interviewEngine";
 import connectDB from "@/lib/server/mongodb";
 import { v4 as uuidv4 } from "uuid";
+import { ISetting } from "@/lib/types";
 
 export async function POST(req: Request) {
   try {
@@ -40,7 +41,8 @@ export async function POST(req: Request) {
     const resumeParsed = resumeDoc?.parsed || null;
     const jdParsed = jdDoc?.parsed || null;
 
-    const settings = {
+    const settings: ISetting = {
+      candidateName: user.name,
       position: user.role,
       language: user.language,
       difficulty: user.difficulty,

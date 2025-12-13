@@ -1,23 +1,23 @@
-import './globals.css';
-import type { Metadata } from 'next';
-import { Outfit, JetBrains_Mono } from 'next/font/google';
-import Providers from '../components/Providers';
+import "./globals.css";
+import type { Metadata } from "next";
+import { Outfit, JetBrains_Mono } from "next/font/google";
+import Providers from "../components/Providers";
 
-const outfit = Outfit({ 
-  subsets: ['latin'],
-  variable: '--font-outfit',
-  display: 'swap',
+const outfit = Outfit({
+  subsets: ["latin"],
+  variable: "--font-outfit",
+  display: "swap",
 });
 
 const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-jetbrains-mono',
-  display: 'swap',
+  subsets: ["latin"],
+  variable: "--font-jetbrains-mono",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: 'Nexus Interview AI',
-  description: 'Master your technical interview with real-time AI simulation.',
+  title: "Nexus Interview AI",
+  description: "Master your technical interview with real-time AI simulation.",
 };
 
 export default function RootLayout({
@@ -28,19 +28,24 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <script type="importmap" dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "imports": {
-               "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-               "pdfjs-dist": "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/+esm"
-            }
-          })
-        }} />
+        <script
+          type="importmap"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              imports: {
+                "@google/genai":
+                  "https://aistudiocdn.com/@google/genai@^1.30.0",
+                "pdfjs-dist":
+                  "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/+esm",
+              },
+            }),
+          }}
+        />
       </head>
-      <body className={`${outfit.variable} ${jetbrainsMono.variable} font-sans antialiased bg-bg text-txt-main`}>
-        <Providers>
-          {children}
-        </Providers>
+      <body
+        className={`${outfit.variable} ${jetbrainsMono.variable} font-sans antialiased bg-bg text-txt-main`}
+      >
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

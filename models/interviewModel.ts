@@ -21,6 +21,8 @@ export interface IInterviewSession extends Document {
   currentQuestion: number;
   contextSummary?: string;
   qaHistory: IQA[];
+  startedAt: Date;
+  endedAt: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -43,6 +45,7 @@ const InterviewSessionSchema = new mongoose.Schema<IInterviewSession>(
     systemPrompt: String,
     contextSummary: String,
     maxQuestion: { type: Number, default: 5 },
+
     currentQuestion: { type: Number, default: 0 },
     qaHistory: [
       {
@@ -54,6 +57,8 @@ const InterviewSessionSchema = new mongoose.Schema<IInterviewSession>(
         updatedAt: { type: Date, default: Date.now },
       },
     ],
+    startedAt: { type: Date, default: new Date() },
+    endedAt: Date,
   },
   { timestamps: true }
 );
