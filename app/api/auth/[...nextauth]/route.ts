@@ -1,5 +1,5 @@
+import { PLAN_LIMITS } from "@/lib/constants";
 import connectDB from "@/lib/server/mongodb";
-import { formatDate } from "@/lib/textHandlers";
 import { generateUniqueID } from "@/models/modelCounter";
 import User from "@/models/userModel";
 import NextAuth, { NextAuthOptions, Session } from "next-auth";
@@ -44,8 +44,6 @@ export const authOptions: NextAuthOptions = {
               console.log(`User info updated: ${email}`);
             }
           } else {
-            const maxQuestions = process.env.MAX_FREE_QUESTIONS;
-            const maxDuration = process.env.MAX_FREE_DURATION;
             // User doesn't exist - SIGNUP
             const USRID = await generateUniqueID("USR");
             existingUser = await User.create({
@@ -55,11 +53,7 @@ export const authOptions: NextAuthOptions = {
               image: user.image,
               googleId: googleId,
               userType: "FREE",
-              limits: {
-                maxDurationPerDay: Number(maxQuestions),
-                maxQuestionsPerDay: Number(maxDuration),
-                lastResetDate: formatDate(new Date()),
-              },
+              limits: PLAN_LIMITS.FREE,
             });
             console.log(`New user created: ${email}`);
           }

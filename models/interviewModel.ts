@@ -1,5 +1,4 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
-// import { IDocument } from "./documentModel";
 
 export interface IQA {
   questionId: string;

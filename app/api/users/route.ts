@@ -2,17 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/server/mongodb";
 import User, { IUser } from "@/models/userModel";
 import path from "path";
-import { writeFile } from "fs/promises";
-import { extractTextFromPdf, formatDate } from "@/lib/textHandlers";
+import { extractTextFromPdf } from "@/lib/textHandlers";
 import DocumentModel from "@/models/documentModel";
 import { parseWithGemini } from "@/lib/gemini/llmServices";
 import { generateUniqueID } from "@/models/modelCounter";
+import InterviewModel from "@/models/interviewModel";
+import { PLAN_LIMITS } from "@/lib/constants";
+import { writeFile } from "fs/promises";
 
 export async function GET(request: NextRequest) {
   await connectDB();
-
-  const users = await User.find({});
-  return NextResponse.json(users);
+  const session = await InterviewModel.findById("69391a530b39d3dc68a304d1")
+    .populate({ path: "userId", select: "userType" })
+    .lean();
+  console.log("sesssions", session?.userId);
+  return NextResponse.json(session?.userId);
 }
 
 export async function POST(request: NextRequest) {
@@ -39,11 +43,11 @@ export async function POST(request: NextRequest) {
     }
     // console.log("Handling File");
     // Convert PDF file to buffer
-    // const buffer = Buffer.from(await file.arrayBuffer());
+    const buffer = Buffer.from(await file.arrayBuffer());
     const fileName = `${file.name}-${Date.now()}`;
     const filePath = path.join(process.cwd(), "public", fileName);
 
-    // await writeFile(filePath, buffer);
+    await writeFile(filePath, buffer);
 
     // Extract text from resume
     // console.log("Extracting Text from RESUME");
@@ -74,8 +78,6 @@ export async function POST(request: NextRequest) {
       );
     } else {
       // Create new user with USRID and default questionLimit
-      const maxQuestions = process.env.MAX_GUEST_QUESTIONS;
-      const maxDuration = process.env.MAX_GUEST_DURATION;
       const USRID = await generateUniqueID("USR");
       user = await User.create({
         USRID,
@@ -86,11 +88,7 @@ export async function POST(request: NextRequest) {
         difficulty,
         language,
         userType: "GUEST",
-        limits: {
-          maxDurationPerDay: Number(maxQuestions),
-          maxQuestionsPerDay: Number(maxDuration),
-          lastResetDate: formatDate(new Date()),
-        },
+        limits: PLAN_LIMITS.GUEST,
       });
     }
 

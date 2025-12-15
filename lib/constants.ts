@@ -10,6 +10,24 @@ export const DOMAINS = [
   "Behavioral / HR",
 ];
 
+export const PLAN_LIMITS = {
+  GUEST: {
+    // maxQuestionsPerDay: 5,
+    maxDurationPerDay: 10 * 60, //600 seconds == 10min
+    // maxInterviewsPerDay: 1,
+  },
+  FREE: {
+    // maxQuestionsPerDay: 20,
+    maxDurationPerDay: 30 * 60, //1800 seconds == 30 min
+    // maxInterviewsPerDay: 2,
+  },
+  PREMIUM: {
+    // maxQuestionsPerDay: Infinity,
+    maxDurationPerDay: Infinity,
+    // maxInterviewsPerDay: Infinity,
+  },
+};
+
 export const getSystemInstruction = (
   domain: string,
   difficulty: Difficulty,

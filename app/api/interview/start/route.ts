@@ -1,80 +1,89 @@
-import { NextResponse } from "next/server";
-import User from "@/models/userModel";
+import { NextRequest, NextResponse } from "next/server";
 import Document from "@/models/documentModel";
 import InterviewSession from "@/models/interviewModel";
 import InterviewEngine from "@/lib/gemini/interviewEngine";
 import connectDB from "@/lib/server/mongodb";
 import { v4 as uuidv4 } from "uuid";
 import { ISetting } from "@/lib/types";
+import { checkAndUpdateDurationMiddleware } from "@/lib/checkLimits";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    const limitCheck = await checkAndUpdateDurationMiddleware(req);
+    if (limitCheck instanceof NextResponse) return limitCheck;
+
+    const { user } = limitCheck;
     await connectDB();
-    const body = await req.json();
 
-    const { userId, resumeId, jdId, maxQuestion = 5 } = body;
-    // Load user and docs
-    const user = await User.findById(userId);
-    if (!user)
-      return NextResponse.json(
-        { success: false, message: "User not found" },
-        { status: 404 }
-      );
+    // const { maxQuestion = 5 } = await req.json();
 
-    const documents = await Document.find({ userId: user._id });
+    // Parallel: Fetch documents and create session
+    const [documents, session] = await Promise.all([
+      Document.find({ userId: user._id }).lean(), // .lean() for faster reads
+      InterviewSession.create({
+        userId: user._id,
+        status: "ongoing",
+        maxQuestion: 5,
+        currentQuestion: 1,
+        qaHistory: [],
+        startedAt: new Date(),
+      }),
+    ]);
+
+    // Find resume and JD
     const resumeDoc = documents.find((d) => d.type === "Resume") || null;
     const jdDoc = documents.find((d) => d.type === "JD") || null;
 
-    // Create session
-    const session = await InterviewSession.create({
-      userId: user._id,
-      resumeId: resumeDoc?._id,
-      jdId: jdDoc?._id,
-      status: "ongoing",
-      maxQuestion,
-      currentQuestion: 1,
-      qaHistory: [],
-    });
+    // Update session with document IDs if found
+    if (resumeDoc || jdDoc) {
+      session.resumeId = resumeDoc?._id;
+      session.jdId = jdDoc?._id;
+    }
 
-    // Build engine and generate first question
-    const engine = new InterviewEngine(session);
-    const resumeParsed = resumeDoc?.parsed || null;
-    const jdParsed = jdDoc?.parsed || null;
-
+    // Build settings
     const settings: ISetting = {
       candidateName: user.name,
       position: user.role,
       language: user.language,
       difficulty: user.difficulty,
     };
+
+    // Generate first question
+    const engine = new InterviewEngine(session);
     const q = await engine.generateFirstQuestion(
-      resumeParsed,
-      jdParsed,
+      resumeDoc?.parsed || null,
+      jdDoc?.parsed || null,
       settings
     );
 
-    // push to session
-    await InterviewSession.findByIdAndUpdate(session._id, {
-      $push: {
-        qaHistory: {
-          questionId: q.questionId || uuidv4(),
-          question: q.questionText,
-          createdAt: new Date(),
-        },
+    // Update session with first question and system prompt
+    session.qaHistory = [
+      {
+        questionId: q.questionId || uuidv4(),
+        question: q.questionText,
+        createdAt: new Date(),
       },
-      systemPrompt: session.systemPrompt || engine.session.systemPrompt,
-    });
+    ];
+    session.systemPrompt = engine.session.systemPrompt;
+
+    // Single save
+    await session.save();
 
     return NextResponse.json({
       success: true,
       sessionId: session._id,
       question: q.questionText,
       questionId: q.questionId,
+      progress: {
+        current: user.limits.durationUsed,
+        total: user.limits.maxDurationPerDay,
+        remaining: user.limits.maxDurationPerDay - user.limits.durationUsed,
+      },
     });
   } catch (err: any) {
-    console.error(err);
+    console.error("Error in /interview/start:", err);
     return NextResponse.json(
-      { success: false, message: err.message },
+      { success: false, message: err.message || "Internal server error" },
       { status: 500 }
     );
   }
