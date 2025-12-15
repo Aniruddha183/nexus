@@ -15,13 +15,21 @@ export async function GET(
   try {
     await connectDB();
 
-    const session = await InterviewModel.findById(sessionId).lean();
+    const session = await InterviewModel.findById(sessionId)
+      .populate({ path: "userId", select: "userType" })
+      .lean();
 
     if (!session)
       return NextResponse.json(
         { success: false, message: "Invalid session" },
         { status: 404 }
       );
+    if ((session.userId as any).userType == "GUEST")
+      return NextResponse.json(
+        { success: false, message: "Please login to for evaluation" },
+        { status: 400 }
+      );
+
     const existingEvaluation = await Evaluation.findOne({
       interviewId: sessionId,
     }).lean();

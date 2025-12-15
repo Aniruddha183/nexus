@@ -10,10 +10,6 @@ export interface IUser extends Document {
   experience: string;
   difficulty: string;
   language: string;
-  // questionLimit: number;
-  // currentQuestion: number;
-  // durationLimit: number; //In Minutes
-  // currentDuration: number; //In Minutes
   userType: "FREE" | "PREMIUM" | "GUEST";
   limits: ILimits;
   googleId?: string;
@@ -22,31 +18,21 @@ export interface IUser extends Document {
 }
 
 export interface ILimits extends Document {
-  // daily usage
-  dailyQuestionsUsed: number;
-  dailyDurationUsed: number;
-  dailyInterviewsUsed: number;
-  lastResetDate: String; // "2025-01-07"
-  // static limits
-  maxQuestionsPerDay: number;
+  durationUsed: number;
+  lastResetDate: string;
   maxDurationPerDay: number;
-  maxInterviewsPerDay: number;
 }
 
 const LimitsSchema = new mongoose.Schema<ILimits>(
   {
-    dailyQuestionsUsed: { type: Number, default: 0 },
-    dailyDurationUsed: { type: Number, default: 0 },
-    dailyInterviewsUsed: { type: Number, default: 0 },
-
-    maxQuestionsPerDay: { type: Number, default: 5 },
-    maxDurationPerDay: { type: Number, default: 10 },
-    maxInterviewsPerDay: { type: Number, default: 1 },
-    lastResetDate: { type: String },
+    durationUsed: { type: Number, default: 0 }, // seconds
+    maxDurationPerDay: { type: Number, default: 1800 }, // 30 minutes in seconds
+    lastResetDate: {
+      type: String,
+      default: () => new Date().toISOString().split("T")[0],
+    },
   },
-  {
-    _id: false,
-  }
+  { _id: false }
 );
 
 const UserSchema = new mongoose.Schema<IUser>(

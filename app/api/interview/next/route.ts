@@ -1,14 +1,22 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import Document from "@/models/documentModel";
 import InterviewSession from "@/models/interviewModel";
 import InterviewEngine from "@/lib/gemini/interviewEngine";
 import connectDB from "@/lib/server/mongodb";
 import { v4 as uuidv4 } from "uuid";
+import User from "@/models/userModel";
+import { checkAndUpdateDurationMiddleware } from "@/lib/checkLimits";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    // Check limits first
+    const limitCheck = await checkAndUpdateDurationMiddleware(req);
+    if (limitCheck instanceof NextResponse) return limitCheck;
+    const { user, sessionId, questionId, answerText, end = false } = limitCheck;
+
     await connectDB();
-    const { sessionId, questionId, answerText, end = false } = await req.json();
+
+    // const { sessionId, questionId, answerText, end = false } = await req.json();
 
     // Validation
     if (!sessionId || !questionId || !answerText) {
@@ -22,7 +30,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Load session with related documents
+    // Load session
     const session = await InterviewSession.findById(sessionId);
     if (!session) {
       return NextResponse.json(
@@ -31,7 +39,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if session is already completed
     if (session.status === "completed") {
       return NextResponse.json(
         { success: false, message: "Session already completed" },
@@ -39,12 +46,39 @@ export async function POST(req: Request) {
       );
     }
 
-    const resumeDoc = session.resumeId
-      ? await Document.findById(session.resumeId)
-      : null;
-    const jdDoc = session.jdId ? await Document.findById(session.jdId) : null;
+    // Calculate elapsed time in SECONDS
+    const startedAtTime = new Date(session.startedAt).getTime();
+    const elapsedSeconds = Math.floor((Date.now() - startedAtTime) / 1000);
 
-    // Find and update the answer for the current question
+    // Check if exceeded limit
+    if (elapsedSeconds >= user.limits.maxDurationPerDay) {
+      // Parallel updates
+      await Promise.all([
+        User.findByIdAndUpdate(user._id, {
+          $set: { "limits.durationUsed": user.limits.maxDurationPerDay },
+        }),
+        InterviewSession.findByIdAndUpdate(sessionId, {
+          $set: { status: "completed", endedAt: new Date() },
+        }),
+      ]);
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Session time limit reached",
+          shouldEndSession: true,
+        },
+        { status: 403 }
+      );
+    }
+
+    // Load documents only if needed (parallel)
+    const [resumeDoc, jdDoc] = await Promise.all([
+      session.resumeId ? Document.findById(session.resumeId) : null,
+      session.jdId ? Document.findById(session.jdId) : null,
+    ]);
+
+    // Update answer in history
     const qaHistory = session.qaHistory || [];
     const questionIndex = qaHistory.findIndex(
       (q: any) => String(q.questionId || q._id) === String(questionId)
@@ -57,45 +91,47 @@ export async function POST(req: Request) {
       );
     }
 
-    // Update the answer
     qaHistory[questionIndex].answer = answerText;
     qaHistory[questionIndex].updatedAt = new Date();
 
-    // Determine if session should end
+    // Check if session should end
     const currentQuestionNumber = session.currentQuestion || qaHistory.length;
-    const maxQuestions = session.maxQuestion || 10;
-    const isQuestionEnd = end || currentQuestionNumber >= maxQuestions;
+    // const maxQuestions = session.maxQuestion || 10;
+    // const isQuestionEnd = end || currentQuestionNumber >= maxQuestions;
 
     // Handle session end
-    if (isQuestionEnd) {
+    if (end) {
       session.status = "completed";
       session.qaHistory = qaHistory;
 
-      // Update context summary with all Q&A
-      const recent = qaHistory.slice(
-        -parseInt(process.env.MAX_CONTEXT_QA || "6", 10)
-      );
+      // Update context
+      const recent = qaHistory.slice(-6);
       session.contextSummary = recent
         .map((r: any) => `Q:${r.question} A:${r.answer || ""}`)
         .join("\n");
 
-      await session.save();
-
       // Generate closing message
-      const engine = new InterviewEngine(session);
-      const parsed = await engine.processAnswerAndGenerateNext(
-        session,
-        answerText,
-        resumeDoc?.parsed,
-        jdDoc?.parsed,
-        { position: session.systemPrompt, isQuestionEnd: true }
-      );
+      // const engine = new InterviewEngine(session);
+      // const parsed = await engine.processAnswerAndGenerateNext(
+      //   session,
+      //   answerText,
+      //   resumeDoc?.parsed,
+      //   jdDoc?.parsed,
+      //   { position: session.systemPrompt, isQuestionEnd: true }
+      // );
 
-      const closingMessage =
-        parsed.closingMessage ||
+      const nextQuestion =
         "Thank you for your time. The interview is now complete.";
 
-      // Return completed session with transcript
+      // Parallel save and update
+      await Promise.all([
+        session.save(),
+        User.findByIdAndUpdate(user._id, {
+          $set: { "limits.durationUsed": elapsedSeconds },
+        }),
+      ]);
+
+      // Build transcript
       const transcript = qaHistory.map((q) => ({
         questionId: q.questionId,
         question: q.question,
@@ -104,17 +140,15 @@ export async function POST(req: Request) {
         updatedAt: q.updatedAt,
       }));
 
-      return NextResponse.json(
-        {
-          success: true,
-          end: true,
-          closingMessage,
-          transcript,
-          sessionComplete: true,
-          completionReason: end ? "user_ended" : "max_questions",
-        },
-        { status: 200 }
-      );
+      return NextResponse.json({
+        success: true,
+        end: true,
+        questionId: uuidv4(),
+        nextQuestion,
+        transcript,
+        sessionComplete: true,
+        completionReason: end ? "user_ended" : "max_questions",
+      });
     }
 
     // Normal flow: Generate next question
@@ -127,48 +161,49 @@ export async function POST(req: Request) {
       { position: session.systemPrompt, isQuestionEnd: false }
     );
 
-    // Validate parsed response
-    if (!parsed.nextQuestion || !parsed.nextQuestion.questionText) {
-      return NextResponse.json(
-        {
-          success: true,
-          nextQuestion:
-            "There is something problem from in this session, Could you please re-start it.",
-          questionId: uuidv4(),
-          topic: "General",
-          difficulty: "No",
-          end: true,
-        },
-        { status: 200 }
-      );
+    // Validate response
+    if (!parsed.nextQuestion?.questionText) {
+      return NextResponse.json({
+        success: true,
+        end: true,
+        nextQuestion:
+          "There is something problem in this session. Please restart.",
+        questionId: uuidv4(),
+        topic: "General",
+        difficulty: "No",
+      });
     }
 
     const nextQuestion = parsed.nextQuestion;
 
-    // Push next question to history
+    // Add next question to history
     qaHistory.push({
       questionId: nextQuestion.questionId || uuidv4(),
       question: nextQuestion.questionText,
       createdAt: new Date(),
-      // topic: nextQuestion.topic,
-      // difficulty: nextQuestion.difficulty,
     });
 
     // Update session
     session.qaHistory = qaHistory;
     session.currentQuestion = currentQuestionNumber + 1;
 
-    // Update context summary
-    const recent = qaHistory.slice(
-      -parseInt(process.env.MAX_CONTEXT_QA || "6", 10)
-    );
+    // Update context
+    const recent = qaHistory.slice(-6);
     session.contextSummary = recent
       .map((r: any) => `Q:${r.question} A:${r.answer || ""}`)
       .join("\n");
 
-    await session.save();
+    // Parallel save and update usage
+    const [newUser] = await Promise.all([
+      User.findByIdAndUpdate(user._id, {
+        $set: { "limits.durationUsed": elapsedSeconds },
+      })
+        .select("limits")
+        .lean(),
+      session.save(),
+    ]);
 
-    // Return transcript of completed Q&A (exclude the new question that hasn't been answered)
+    // Build transcript (exclude unanswered question)
     const transcript = qaHistory.slice(0, -1).map((q) => ({
       questionId: q.questionId,
       question: q.question,
@@ -177,23 +212,21 @@ export async function POST(req: Request) {
       updatedAt: q.updatedAt,
     }));
 
-    return NextResponse.json(
-      {
-        success: true,
-        question: nextQuestion.questionText,
-        questionId: nextQuestion.questionId,
-        topic: nextQuestion.topic,
-        difficulty: nextQuestion.difficulty,
-        progress: {
-          current: session.currentQuestion,
-          total: maxQuestions,
-          remaining: maxQuestions - session.currentQuestion,
-        },
-        transcript,
-        end: false,
+    return NextResponse.json({
+      success: true,
+      question: nextQuestion.questionText,
+      questionId: nextQuestion.questionId,
+      topic: nextQuestion.topic,
+      difficulty: nextQuestion.difficulty,
+      progress: {
+        current: newUser?.limits.durationUsed,
+        total: newUser?.limits.maxDurationPerDay,
+        remaining:
+          (newUser?.limits.maxDurationPerDay || 0) - user.limits.durationUsed,
       },
-      { status: 200 }
-    );
+      transcript,
+      end: false,
+    });
   } catch (err: any) {
     console.error("Error in /interview/next:", err);
     return NextResponse.json(
